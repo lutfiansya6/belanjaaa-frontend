@@ -1,240 +1,369 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
+import React, { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sparkles,
-  ShoppingBag,
-  Laptop,
-  Shirt,
-  Smartphone,
-  Utensils,
-  Car,
-  HeartPulse,
-  Gamepad2,
   ArrowRight,
-  Database,
-  Layers,
-  CheckCircle2,
+  RotateCcw,
+  PackageSearch,
+  AlertCircle,
+  X,
+  Truck,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
+import { useProducts, useCategories } from '@/hooks/useProducts';
+import { ProductSortOption } from '@/types';
+import ProductCard from '@/components/products/ProductCard';
+import { ProductGridSkeleton } from '@/components/products/ProductSkeleton';
+import CategoryFilter from '@/components/products/CategoryFilter';
+import MobileCategoryBar from '@/components/products/MobileCategoryBar';
+import ProductSortBar from '@/components/products/ProductSortBar';
+import Pagination from '@/components/ui/Pagination';
 
-export default function HomePage() {
-  const categories = [
-    { name: 'Gadget & HP', icon: Smartphone, count: '1.2k+ item' },
-    { name: 'Elektronik', icon: Laptop, count: '850+ item' },
-    { name: 'Fashion & Pakaian', icon: Shirt, count: '3.4k+ item' },
-    { name: 'Makanan & Minuman', icon: Utensils, count: '940+ item' },
-    { name: 'Gaming & Hobi', icon: Gamepad2, count: '620+ item' },
-    { name: 'Kesehatan & Kecantikan', icon: HeartPulse, count: '1.1k+ item' },
-    { name: 'Otomotif & Aksesoris', icon: Car, count: '480+ item' },
-    { name: 'Semua Kategori', icon: ShoppingBag, count: 'Lihat Semua' },
-  ];
+function MarketplaceContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Extract query parameters from URL
+  const searchQuery = searchParams.get('search') || '';
+  const categoryId = searchParams.get('categoryId') || '';
+  const sortParam = (searchParams.get('sort') as ProductSortOption) || 'newest';
+  const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+
+  // Mobile filter drawer state
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+
+  // Fetch categories & products
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+  } = useCategories();
+
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+  } = useProducts({
+    search: searchQuery || undefined,
+    categoryId: categoryId || undefined,
+    sort: sortParam,
+    page: currentPage,
+    limit: 10,
+  });
+
+  const products = productsData?.items || [];
+  const meta = productsData?.meta || {
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  };
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+
+  // Helper to update URL query parameters smoothly
+  const updateUrlParams = (newParams: Record<string, string | number | undefined | null>) => {
+    const current = new URLSearchParams(searchParams.toString());
+
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') {
+        current.delete(key);
+      } else {
+        current.set(key, String(value));
+      }
+    });
+
+    const queryString = current.toString();
+    router.push(queryString ? `/?${queryString}` : '/');
+  };
+
+  // Filter & pagination handlers
+  const handleSelectCategory = (newCatId?: string) => {
+    updateUrlParams({
+      categoryId: newCatId,
+      page: 1, // Reset page on category change
+    });
+    setMobileFilterOpen(false);
+  };
+
+  const handleSortChange = (newSort: ProductSortOption) => {
+    updateUrlParams({
+      sort: newSort,
+      page: 1, // Reset page on sort change
+    });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    updateUrlParams({
+      page: newPage,
+    });
+  };
+
+  const handleClearSearch = () => {
+    updateUrlParams({
+      search: undefined,
+      page: 1,
+    });
+  };
+
+  const handleClearCategory = () => {
+    updateUrlParams({
+      categoryId: undefined,
+      page: 1,
+    });
+  };
+
+  const handleResetAllFilters = () => {
+    router.push('/');
+  };
+
+  const activeFilterCount = (categoryId ? 1 : 0) + (searchQuery ? 1 : 0);
 
   return (
     <div className="min-h-full pb-16">
-      <div className="max-w-7xl mx-auto px-4 pt-6 space-y-8">
-        {/* Marketplace Banner / Hero Section */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-500 text-white shadow-xl shadow-orange-500/10">
-          <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute right-1/4 -top-20 w-80 h-80 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 space-y-6">
+        {/* Marketplace Hero Promo Banner (Compact on mobile, rich on desktop) */}
+        {!searchQuery && currentPage === 1 && !categoryId && (
+          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-500 text-white shadow-lg shadow-orange-500/10">
+            <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute right-1/4 -top-20 w-64 h-64 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
 
-          <div className="relative z-10 px-6 sm:px-12 py-12 md:py-16 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="max-w-xl text-center md:text-left space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold backdrop-blur-md">
-                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                <span>Marketplace Modern & Terpercaya</span>
+            <div className="relative z-10 p-5 sm:p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="max-w-xl text-center md:text-left space-y-3">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold backdrop-blur-md">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                  <span>Marketplace Modern Indonesia</span>
+                </div>
+
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-snug">
+                  Belanja Nyaman, <br className="hidden sm:inline" />
+                  Pilihan Lengkap <span className="text-amber-200 underline decoration-wavy decoration-amber-300">Harga Terbaik</span>
+                </h1>
+
+                <p className="text-xs sm:text-sm text-orange-100 font-normal leading-relaxed max-w-lg">
+                  Katalog produk terlengkap mulai dari gadget, elektronik, hingga fashion.
+                  Nikmati gratis ongkir dan promo flash sale setiap saat!
+                </p>
+
+                <div className="pt-1 flex flex-wrap items-center justify-center md:justify-start gap-3">
+                  <a
+                    href="#products-section"
+                    className="px-5 py-2.5 rounded-xl bg-white text-orange-600 font-bold text-xs sm:text-sm shadow-md hover:bg-orange-50 hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    <span>Jelajahi Produk</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+
+                  <div className="flex items-center gap-4 text-xs text-orange-100 font-medium">
+                    <span className="flex items-center gap-1">
+                      <Truck className="w-3.5 h-3.5 text-amber-200" /> Bebas Ongkir
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-200" /> Jaminan Asli
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
-                Belanja Praktis, <br className="hidden sm:inline" />
-                Semua Kebutuhan <span className="text-amber-200 underline decoration-wavy decoration-amber-300">Ada di Sini</span>
-              </h1>
-
-              <p className="text-sm sm:text-base text-orange-100 font-normal leading-relaxed">
-                Nikmati pengalaman belanja online terbaik dengan jutaan produk berkualitas,
-                promo flash sale setiap hari, dan garansi gratis ongkir tanpa syarat.
-              </p>
-
-              <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-3">
-                <Link
-                  href="/kategori"
-                  className="px-6 py-3 rounded-xl bg-white text-orange-600 font-bold text-sm shadow-md hover:bg-orange-50 hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 group"
-                >
-                  <span>Mulai Belanja</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-
-                <a
-                  href="#system-status"
-                  className="px-5 py-3 rounded-xl bg-orange-700/60 hover:bg-orange-700 text-white font-medium text-sm border border-white/20 backdrop-blur-md transition-all flex items-center gap-2"
-                >
-                  <Database className="w-4 h-4 text-amber-200" />
-                  <span>Status Sistem API</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Hero Quick Highlight Card */}
-            <div className="w-full md:w-80 p-5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl space-y-4 text-white">
-              <div className="flex items-center justify-between border-b border-white/20 pb-3">
-                <span className="text-xs font-semibold tracking-wide uppercase text-amber-200">
-                  ⚡ Flash Promo Spesial
-                </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-400 text-orange-950 font-bold">
-                  Aktif
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg text-amber-200">
+              {/* Quick highlight cards */}
+              <div className="hidden lg:grid grid-cols-2 gap-3 w-80 text-white">
+                <div className="p-3.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 shadow-md">
+                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center font-bold text-amber-200 mb-2">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold">Pengiriman Kilat</h4>
+                  <p className="text-[11px] text-orange-100 mt-0.5">Dikirim dari kota terdekat</p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 shadow-md">
+                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center font-bold text-amber-200 mb-2">
                     %
                   </div>
-                  <div>
-                    <p className="text-sm font-bold">Diskon Hingga 70%</p>
-                    <p className="text-xs text-orange-100">Katalog gadget & fashion terbaru</p>
-                  </div>
+                  <h4 className="text-xs font-bold">Cashback & Diskon</h4>
+                  <p className="text-[11px] text-orange-100 mt-0.5">Promo hemat setiap hari</p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg text-amber-200">
-                    🚚
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Gratis Ongkir Xtra</p>
-                    <p className="text-xs text-orange-100">Pengiriman kilat ke seluruh wilayah</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 text-center">
-                <span className="text-[11px] text-orange-200">
-                  *Syarat dan ketentuan promo berlaku
-                </span>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* Quick Categories Bar */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-2.5 h-6 bg-orange-500 rounded-full inline-block" />
-              Kategori Terpopuler
-            </h2>
-            <Link
-              href="/kategori"
-              className="text-xs sm:text-sm font-semibold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1"
-            >
-              Lihat Semua Kategori <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+        {/* Mobile Category Scroll Bar (Visible on mobile & tablet) */}
+        <MobileCategoryBar
+          categories={categories}
+          selectedCategoryId={categoryId}
+          onSelectCategory={handleSelectCategory}
+          onOpenMobileFilter={() => setMobileFilterOpen(true)}
+          activeFilterCount={activeFilterCount}
+        />
+
+        {/* Main Content Layout: Sidebar Filter + Products Grid */}
+        <div id="products-section" className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Desktop Left Sidebar: Category Filter */}
+          <div className="hidden lg:block w-64 xl:w-72 flex-shrink-0 sticky top-28">
+            <CategoryFilter
+              categories={categories}
+              selectedCategoryId={categoryId}
+              onSelectCategory={handleSelectCategory}
+              isLoading={categoriesLoading}
+            />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
-            {categories.map((cat) => {
-              const Icon = cat.icon;
-              return (
-                <div
-                  key={cat.name}
-                  className="group flex flex-col items-center p-4 rounded-xl bg-white border border-gray-100 shadow-xs hover:shadow-md hover:border-orange-200 transition-all cursor-pointer text-center"
+          {/* Right Main Column: Sorting Bar + Product Grid + Pagination */}
+          <div className="flex-1 w-full space-y-4">
+            {/* Sorting & Filter status bar */}
+            <ProductSortBar
+              totalItems={meta.total}
+              currentSort={sortParam}
+              onSortChange={handleSortChange}
+              searchQuery={searchQuery}
+              onClearSearch={handleClearSearch}
+              selectedCategory={selectedCategory}
+              onClearCategory={handleClearCategory}
+            />
+
+            {/* Products Grid State */}
+            {productsLoading ? (
+              <ProductGridSkeleton count={10} />
+            ) : productsError ? (
+              /* Error State */
+              <div className="bg-white rounded-2xl border border-rose-200 p-8 text-center space-y-3 my-4">
+                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">
+                  Gagal Memuat Daftar Produk
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto">
+                  Terjadi gangguan saat menghubungkan ke server API backend. Pastikan server backend sedang aktif di port 3001.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchProducts()}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-all flex items-center justify-center mb-2.5 shadow-xs">
-                    <Icon className="w-6 h-6 transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
-                    {cat.name}
-                  </span>
-                  <span className="text-[10px] text-gray-400 mt-0.5">
-                    {cat.count}
-                  </span>
+                  Coba Muat Ulang
+                </button>
+              </div>
+            ) : products.length === 0 ? (
+              /* Empty State */
+              <div className="bg-white rounded-2xl border border-gray-200/80 p-8 sm:p-12 text-center space-y-4 my-4">
+                <div className="w-16 h-16 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mx-auto">
+                  <PackageSearch className="w-8 h-8" />
                 </div>
-              );
-            })}
+                <div className="space-y-1">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                    Produk Tidak Ditemukan
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto">
+                    {searchQuery
+                      ? `Tidak ada produk yang cocok dengan kata kunci "${searchQuery}". Silakan coba kata kunci lain atau bersihkan filter.`
+                      : 'Belum ada produk untuk kategori yang dipilih saat ini.'}
+                  </p>
+                </div>
+
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetAllFilters}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 shadow-xs transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Reset Semua Filter
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Product Cards Grid: 2 cols on mobile, 3 on sm/md, 4 on lg/xl */
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4">
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!productsLoading && meta.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={meta.totalPages}
+                onPageChange={handlePageChange}
+                isLoading={productsLoading}
+              />
+            )}
           </div>
-        </section>
-
-        {/* System & Architecture Status Card */}
-        <section
-          id="system-status"
-          className="rounded-2xl bg-white border border-gray-200 p-6 sm:p-8 shadow-xs space-y-6"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold mb-1 border border-emerald-200">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Frontend Siap Terhubung
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">
-                Infrastruktur & Arsitektur Frontend
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-500">
-                Proyek telah dikonfigurasi dengan standar performa tinggi untuk platform e-commerce.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                Next.js 16 (App Router)
-              </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                TypeScript
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* API Client Card */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
-                <Database className="w-4 h-4" />
-                API Client Wrapper
-              </div>
-              <p className="text-xs text-gray-600">
-                Fetch wrapper terintegrasi dengan URL dasar backend:
-              </p>
-              <div className="p-2 rounded bg-white border border-slate-200 text-[11px] font-mono text-slate-800 break-all select-all">
-                NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-              </div>
-              <p className="text-[11px] text-gray-500">
-                Mendukung otomatis Authorization Bearer, typed responses, serta penanganan error standar.
-              </p>
-            </div>
-
-            {/* TanStack Query Card */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
-                <Layers className="w-4 h-4" />
-                @tanstack/react-query
-              </div>
-              <p className="text-xs text-gray-600">
-                QueryClientProvider terkonfigurasi dengan caching cerdas di sisi klien:
-              </p>
-              <ul className="text-[11px] text-gray-500 space-y-1 list-disc list-inside">
-                <li>Stale time: 60 detik</li>
-                <li>Garbage collection: 5 menit</li>
-                <li>Auto-retry & refetch prevention</li>
-              </ul>
-            </div>
-
-            {/* Styling & Layout Card */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-orange-600 font-semibold text-sm">
-                <Sparkles className="w-4 h-4" />
-                Tailwind & Marketplace UI
-              </div>
-              <p className="text-xs text-gray-600">
-                Desain responsif dengan palet oranye hangat:
-              </p>
-              <ul className="text-[11px] text-gray-500 space-y-1 list-disc list-inside">
-                <li>Header lengkap (search, cart, login/daftar)</li>
-                <li>Footer informasi layanan & pembayaran</li>
-                <li>Kompatibel perangkat seluler & desktop</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+        </div>
       </div>
+
+      {/* Mobile Filter Modal / Drawer */}
+      {mobileFilterOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileFilterOpen(false)}
+          />
+
+          {/* Bottom Sheet Drawer */}
+          <div className="relative bg-white rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl z-10 animate-in slide-in-from-bottom duration-200">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 text-base">Filter Kategori</h3>
+              <button
+                type="button"
+                onClick={() => setMobileFilterOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 space-y-4">
+              <CategoryFilter
+                categories={categories}
+                selectedCategoryId={categoryId}
+                onSelectCategory={handleSelectCategory}
+                isLoading={categoriesLoading}
+              />
+            </div>
+
+            <div className="p-4 border-t border-gray-100 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleResetAllFilters();
+                  setMobileFilterOpen(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileFilterOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 shadow-xs"
+              >
+                Terapkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 pt-6">
+          <ProductGridSkeleton count={10} />
+        </div>
+      }
+    >
+      <MarketplaceContent />
+    </Suspense>
   );
 }

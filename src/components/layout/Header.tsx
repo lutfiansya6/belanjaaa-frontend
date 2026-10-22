@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Search,
   ShoppingCart,
@@ -16,27 +17,122 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-export default function Header() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const cartItemCount = 0; // Dynamic count ready for state/query
+const popularKeywords = [
+  'Powerbank',
+  'Jam Tangan',
+  'Mouse',
+  'Hoodie',
+  'Blouse',
+  'Kamera',
+];
 
-  const popularKeywords = [
-    'Laptop Gaming',
-    'Sneakers Pria',
-    'TWS Bluetooth',
-    'Smart Watch',
-    'Kemeja Casual',
-    'Air Fryer',
-  ];
+function HeaderSearchForm({ initialSearch }: { initialSearch: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+
+  const executeSearch = (query: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const trimmed = query.trim();
+    if (trimmed) {
+      params.set('search', trimmed);
+    } else {
+      params.delete('search');
+    }
+    params.delete('page');
+
+    const queryString = params.toString();
+    router.push(queryString ? `/?${queryString}` : '/');
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      // Prepared for search routing e.g. router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
-      console.log('Searching for:', searchQuery);
-    }
+    executeSearch(searchQuery);
   };
+
+  const handleClear = () => {
+    setSearchQuery('');
+    executeSearch('');
+  };
+
+  const handleTagClick = (tag: string) => {
+    setSearchQuery(tag);
+    executeSearch(tag);
+  };
+
+  return (
+    <div className="flex-1 max-w-2xl mx-2">
+      <form onSubmit={handleSearch} className="relative flex items-center">
+        <div className="relative w-full">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari produk impianmu (misal: Powerbank, Hoodie)..."
+            id="search-input"
+            className="w-full pl-4 pr-20 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base text-gray-800 placeholder-gray-400 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-orange-300 focus:bg-white transition-all"
+          />
+
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClear}
+              aria-label="Hapus kata pencarian"
+              className="absolute right-12 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
+          <button
+            type="submit"
+            aria-label="Cari"
+            id="search-submit-btn"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white p-2 rounded-md sm:rounded-lg shadow transition-all duration-150 active:scale-95 flex items-center justify-center"
+          >
+            <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+        </div>
+      </form>
+
+      {/* Trending tags (Desktop only) */}
+      <div className="hidden lg:flex items-center gap-2 mt-1.5 text-xs text-orange-100 overflow-hidden whitespace-nowrap">
+        <span className="flex items-center gap-1 font-semibold text-amber-200">
+          <Sparkles className="w-3 h-3" /> Tren:
+        </span>
+        {popularKeywords.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => handleTagClick(tag)}
+            className="hover:text-white hover:underline transition-colors focus:outline-none"
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HeaderSearchBar() {
+  const searchParams = useSearchParams();
+  const currentSearch = searchParams.get('search') || '';
+
+  return <HeaderSearchForm key={currentSearch} initialSearch={currentSearch} />;
+}
+
+function SearchBarFallback() {
+  return (
+    <div className="flex-1 max-w-2xl mx-2">
+      <div className="w-full h-11 bg-white/20 rounded-xl animate-pulse" />
+    </div>
+  );
+}
+
+export default function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const cartItemCount = 0;
 
   return (
     <header className="sticky top-0 z-50 w-full shadow-md">
@@ -96,46 +192,10 @@ export default function Header() {
               </div>
             </Link>
 
-            {/* Search Input Bar */}
-            <div className="flex-1 max-w-2xl mx-2">
-              <form onSubmit={handleSearch} className="relative flex items-center">
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Cari produk, merek, atau toko impianmu..."
-                    id="search-input"
-                    className="w-full pl-4 pr-12 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base text-gray-800 placeholder-gray-400 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-orange-300 focus:bg-white transition-all"
-                  />
-                  <button
-                    type="submit"
-                    aria-label="Cari"
-                    id="search-submit-btn"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white p-2 rounded-md sm:rounded-lg shadow transition-all duration-150 active:scale-95 flex items-center justify-center"
-                  >
-                    <Search className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </div>
-              </form>
-
-              {/* Trending tags (Desktop only) */}
-              <div className="hidden lg:flex items-center gap-2 mt-1.5 text-xs text-orange-100 overflow-hidden whitespace-nowrap">
-                <span className="flex items-center gap-1 font-semibold text-amber-200">
-                  <Sparkles className="w-3 h-3" /> Tren:
-                </span>
-                {popularKeywords.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setSearchQuery(tag)}
-                    className="hover:text-white hover:underline transition-colors focus:outline-none"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Search Input Bar (Wrapped in Suspense) */}
+            <Suspense fallback={<SearchBarFallback />}>
+              <HeaderSearchBar />
+            </Suspense>
 
             {/* Header Right Actions */}
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
@@ -201,25 +261,22 @@ export default function Header() {
         <div className="bg-orange-600/90 border-t border-orange-400/30 text-white text-xs sm:text-sm py-2 px-4 hidden md:block backdrop-blur-sm">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-6 overflow-x-auto no-scrollbar font-medium">
-              <Link href="/kategori" className="flex items-center gap-1.5 hover:text-amber-200 transition-colors">
+              <Link href="/?sort=newest" className="flex items-center gap-1.5 hover:text-amber-200 transition-colors">
                 <Menu className="w-4 h-4" />
-                <span>Kategori Pilihan</span>
+                <span>Katalog Produk</span>
               </Link>
-              <Link href="/flash-sale" className="hover:text-amber-200 transition-colors flex items-center gap-1">
-                <span className="text-amber-300 font-bold">⚡</span> Flash Sale
+              <Link href="/?sort=best_selling" className="hover:text-amber-200 transition-colors flex items-center gap-1">
+                <span className="text-amber-300 font-bold">⚡</span> Produk Terlaris
               </Link>
-              <Link href="/official-store" className="hover:text-amber-200 transition-colors">
+              <span className="hover:text-amber-200 transition-colors cursor-pointer">
                 Official Store
-              </Link>
-              <Link href="/gratis-ongkir" className="hover:text-amber-200 transition-colors">
+              </span>
+              <span className="hover:text-amber-200 transition-colors cursor-pointer">
                 Gratis Ongkir XTRA
-              </Link>
-              <Link href="/promo" className="hover:text-amber-200 transition-colors">
-                Voucher & Diskon
-              </Link>
-              <Link href="/tagihan" className="hover:text-amber-200 transition-colors">
-                Pulsa & Tagihan
-              </Link>
+              </span>
+              <span className="hover:text-amber-200 transition-colors cursor-pointer">
+                Voucher Diskon
+              </span>
             </div>
 
             <div className="text-orange-200 text-xs font-normal">
@@ -252,33 +309,19 @@ export default function Header() {
 
             <div className="flex flex-col space-y-2 text-sm text-gray-700 font-medium">
               <Link
-                href="/kategori"
+                href="/"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-2 py-1.5 hover:text-orange-600"
               >
-                <Menu className="w-4 h-4 text-orange-500" />
-                Semua Kategori
+                <Store className="w-4 h-4 text-orange-500" />
+                Semua Produk
               </Link>
               <Link
-                href="/flash-sale"
+                href="/?sort=best_selling"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-2 py-1.5 hover:text-orange-600"
               >
-                <span className="text-orange-500 font-bold">⚡</span> Flash Sale Hari Ini
-              </Link>
-              <Link
-                href="/official-store"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 py-1.5 hover:text-orange-600"
-              >
-                <Store className="w-4 h-4 text-orange-500" /> Official Store
-              </Link>
-              <Link
-                href="/bantuan"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 py-1.5 hover:text-orange-600"
-              >
-                <HelpCircle className="w-4 h-4 text-orange-500" /> Pusat Bantuan
+                <span className="text-orange-500 font-bold">⚡</span> Produk Terlaris
               </Link>
             </div>
           </div>
