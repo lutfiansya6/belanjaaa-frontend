@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import QueryProvider from '@/providers/query-provider';
+import { AuthProvider } from '@/providers/auth-provider';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
@@ -33,9 +34,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-orange-500 selection:text-white">
         <QueryProvider>
-          <Header />
-          <main className="flex-1 w-full">{children}</main>
-          <Footer />
+          <AuthProvider>
+            <Header />
+            <main className="flex-1 w-full">{children}</main>
+            <Footer />
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

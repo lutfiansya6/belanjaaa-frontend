@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -54,7 +54,7 @@ function ProductDetailSkeleton() {
   );
 }
 
-export default function ProductDetailPage() {
+function ProductDetailContent() {
   const params = useParams();
   const router = useRouter();
   const productId = (params?.id as string) || '';
@@ -510,3 +510,12 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+
+export default function ProductDetailPage() {
+  return (
+    <Suspense fallback={<ProductDetailSkeleton />}>
+      <ProductDetailContent />
+    </Suspense>
+  );
+}
+
