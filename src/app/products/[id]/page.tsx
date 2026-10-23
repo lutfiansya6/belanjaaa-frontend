@@ -23,8 +23,11 @@ import {
   MessageCircle,
   CheckCircle2,
   ImageOff,
+  Loader2,
 } from 'lucide-react';
 import { useProduct } from '@/hooks/useProducts';
+import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/hooks/useCart';
 import { formatRupiah, formatSold, formatRating } from '@/lib/formatters';
 
 function ProductDetailSkeleton() {
@@ -59,12 +62,15 @@ function ProductDetailContent() {
   const router = useRouter();
   const productId = (params?.id as string) || '';
 
+  const { isAuthenticated } = useAuth();
+  const { addToCart, isAddingToCart } = useCart();
   const { data: product, isLoading, isError } = useProduct(productId);
 
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [addedToast, setAddedToast] = useState(false);
+  const [cartSuccessMessage, setCartSuccessMessage] = useState<string | null>(null);
+  const [cartErrorMessage, setCartErrorMessage] = useState<string | null>(null);
 
   const handleDecreaseQuantity = () => {
     setQuantity((prev) => Math.max(1, prev - 1));
@@ -75,11 +81,28 @@ function ProductDetailContent() {
     setQuantity((prev) => Math.min(product.stock, prev + 1));
   };
 
-  const handleAddToCart = () => {
-    setAddedToast(true);
-    setTimeout(() => {
-      setAddedToast(false);
-    }, 3000);
+  const handleAddToCart = async (goToCart = false) => {
+    if (!product || product.stock <= 0) return;
+
+    if (!isAuthenticated) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/products/${product.id}`)}`);
+      return;
+    }
+
+    setCartErrorMessage(null);
+    try {
+      await addToCart({ productId: product.id, quantity });
+      setCartSuccessMessage(`${quantity}x "${product.name}" berhasil ditambahkan ke keranjang!`);
+      setTimeout(() => setCartSuccessMessage(null), 3500);
+
+      if (goToCart) {
+        router.push('/cart');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menambahkan produk ke keranjang';
+      setCartErrorMessage(msg);
+      setTimeout(() => setCartErrorMessage(null), 6000);
+    }
   };
 
   if (isLoading) {
@@ -124,10 +147,19 @@ function ProductDetailContent() {
   return (
     <div className="min-h-full pb-24 lg:pb-16 pt-4">
       {/* Toast Notification */}
-      {addedToast && (
-        <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-sm font-semibold animate-in slide-in-from-top duration-200">
-          <CheckCircle2 className="w-5 h-5" />
-          <span>{quantity}x produk berhasil ditambahkan ke keranjang!</span>
+      {cartErrorMessage && (
+        <div className="fixed top-20 right-4 z-50 bg-rose-600 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-start gap-3 text-sm font-semibold animate-in slide-in-from-top duration-200 max-w-md border border-rose-500">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-rose-200" />
+          <div className="space-y-0.5 flex-1">
+            <p className="font-bold text-white">Pemberitahuan</p>
+            <p className="text-xs text-rose-100 font-normal leading-relaxed">{cartErrorMessage}</p>
+          </div>
+        </div>
+      )}
+      {cartSuccessMessage && (
+        <div className="fixed top-20 right-4 z-50 bg-emerald-600 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-semibold animate-in slide-in-from-top duration-200 max-w-md border border-emerald-500">
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-200" />
+          <span className="text-xs sm:text-sm">{cartSuccessMessage}</span>
         </div>
       )}
 
@@ -352,21 +384,24 @@ function ProductDetailContent() {
                 <div className="hidden sm:flex items-center gap-3 pt-3">
                   <button
                     type="button"
-                    onClick={handleAddToCart}
-                    disabled={isOutOfStock}
+                    id="add-to-cart-btn"
+                    onClick={() => handleAddToCart(false)}
+                    disabled={isOutOfStock || isAddingToCart}
                     className="flex-1 py-3.5 px-6 rounded-xl border-2 border-orange-600 text-orange-600 hover:bg-orange-50 font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ShoppingCart className="w-4 h-4" />
-                    <span>+ Keranjang</span>
+                    {isAddingToCart ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                    ) : (
+                      <ShoppingCart className="w-4 h-4" />
+                    )}
+                    <span>{isAddingToCart ? 'Menambahkan...' : '+ Keranjang'}</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      handleAddToCart();
-                      router.push('/cart');
-                    }}
-                    disabled={isOutOfStock}
+                    id="buy-now-btn"
+                    onClick={() => handleAddToCart(true)}
+                    disabled={isOutOfStock || isAddingToCart}
                     className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-sm shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Zap className="w-4 h-4 fill-white" />
@@ -486,21 +521,24 @@ function ProductDetailContent() {
 
         <button
           type="button"
-          onClick={handleAddToCart}
-          disabled={isOutOfStock}
+          id="mobile-add-to-cart-btn"
+          onClick={() => handleAddToCart(false)}
+          disabled={isOutOfStock || isAddingToCart}
           className="flex-1 py-2.5 px-3 rounded-xl border border-orange-500 bg-orange-50 text-orange-600 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
         >
-          <ShoppingCart className="w-4 h-4" />
-          <span>+ Keranjang</span>
+          {isAddingToCart ? (
+            <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+          ) : (
+            <ShoppingCart className="w-4 h-4" />
+          )}
+          <span>{isAddingToCart ? 'Menambahkan...' : '+ Keranjang'}</span>
         </button>
 
         <button
           type="button"
-          onClick={() => {
-            handleAddToCart();
-            router.push('/cart');
-          }}
-          disabled={isOutOfStock}
+          id="mobile-buy-now-btn"
+          onClick={() => handleAddToCart(true)}
+          disabled={isOutOfStock || isAddingToCart}
           className="flex-1 py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
         >
           <Zap className="w-4 h-4 fill-white" />

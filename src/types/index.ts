@@ -90,3 +90,116 @@ export interface RegisterInput {
   phone?: string;
 }
 
+export interface CartItemProduct {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  sold?: number;
+  rating?: number;
+  shopId: string;
+  categoryId: string;
+  shop?: {
+    id: string;
+    name: string;
+    city: string;
+  };
+  category?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  subtotal: number;
+  createdAt: string;
+  updatedAt: string;
+  product: CartItemProduct;
+}
+
+export interface CartResponse {
+  id: string;
+  userId: string;
+  items: CartItem[];
+  totalItems: number;
+  totalAmount: number;
+  updatedAt: string;
+}
+
+export interface AddToCartInput {
+  productId: string;
+  quantity?: number;
+}
+
+export interface UpdateCartItemInput {
+  quantity: number;
+}
+
+export interface Address {
+  id: string;
+  recipientName: string;
+  phone: string;
+  street: string;
+  city: string;
+  province?: string | null;
+  postalCode?: string | null;
+  isDefault: boolean;
+  userId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateAddressInput {
+  recipientName: string;
+  phone: string;
+  street: string;
+  city: string;
+  province?: string;
+  postalCode?: string;
+  isDefault?: boolean;
+}
+
+export type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+
+export interface OrderItem {
+  id: string;
+  orderId?: string;
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+  createdAt?: string;
+  product?: {
+    id: string;
+    name: string;
+    imageUrl: string;
+    shop?: {
+      id: string;
+      name: string;
+      city: string;
+    };
+  };
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  status: OrderStatus;
+  totalAmount: number;
+  addressId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
+  address?: Address | null;
+}
+
+export interface CreateOrderInput {
+  addressId?: string;
+}
+

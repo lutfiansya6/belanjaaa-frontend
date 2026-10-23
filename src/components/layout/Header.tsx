@@ -22,6 +22,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/hooks/useCart';
 
 const popularKeywords = [
   'Powerbank',
@@ -144,7 +145,8 @@ export default function Header() {
   const [isMounted, setIsMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuth();
-  const cartItemCount = 0;
+  const { totalItems } = useCart();
+  const cartItemCount = isMounted && isAuthenticated ? totalItems : 0;
 
   useEffect(() => {
     setIsMounted(true);
